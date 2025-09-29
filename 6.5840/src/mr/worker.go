@@ -5,75 +5,86 @@ import "log"
 import "net/rpc"
 import "hash/fnv"
 
-
-//
-// Map functions return a slice of KeyValue.
-//
+// 原有结构保持不变
 type KeyValue struct {
 	Key   string
 	Value string
 }
 
-//
-// use ihash(key) % NReduce to choose the reduce
-// task number for each KeyValue emitted by Map.
-//
 func ihash(key string) int {
 	h := fnv.New32a()
 	h.Write([]byte(key))
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
-//
-// main/mrworker.go calls this function.
-//
+// Worker主逻辑：循环请求任务并处理
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
-	// Your worker implementation here.
+	for {
+		// 1. 请求任务
+		task, ok := requestTask()
+		if !ok {
+			log.Printf("请求任务失败，重试...")
+			continue
+		}
 
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
-
+		// 2. 处理任务
+		switch task.TaskType {
+		case MapTask:
+			// 后续实现Map任务处理
+			log.Printf("收到Map任务 #%d，文件：%s", task.TaskID, task.InputFile)
+			// 处理完成后汇报
+			reportTask(MapTask, task.TaskID, true)
+		case ReduceTask:
+			// 后续实现Reduce任务处理
+			log.Printf("收到Reduce任务 #%d", task.TaskID)
+			// 处理完成后汇报
+			reportTask(ReduceTask, task.TaskID, true)
+		case WaitTask:
+			// 等待一段时间后重试
+			log.Printf("暂无任务，等待...")
+			continue
+		case ExitTask:
+			// 退出 Worker
+			log.Printf("所有任务完成，退出")
+			return
+		}
+	}
 }
 
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
+// 向Coordinator请求任务
+func requestTask() (TaskReply, bool) {
+	args := TaskRequest{}
+	reply := TaskReply{}
+	ok := call("Coordinator.GetTask", &args, &reply)
+	return reply, ok
+}
+
+// 向Coordinator汇报任务完成情况
+func reportTask(taskType string, taskID int, success bool) bool {
+	args := ReportRequest{
+		TaskType: taskType,
+		TaskID:   taskID,
+		Success:  success,
+	}
+	reply := ReportReply{}
+	return call("Coordinator.ReportTask", &args, &reply)
+}
+
+// 原有代码保持不变
 func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
+	args := ExampleArgs{X: 99}
 	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
 	ok := call("Coordinator.Example", &args, &reply)
 	if ok {
-		// reply.Y should be 100.
 		fmt.Printf("reply.Y %v\n", reply.Y)
 	} else {
 		fmt.Printf("call failed!\n")
 	}
 }
 
-//
-// send an RPC request to the coordinator, wait for the response.
-// usually returns true.
-// returns false if something goes wrong.
-//
 func call(rpcname string, args interface{}, reply interface{}) bool {
-	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
