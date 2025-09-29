@@ -1,37 +1,40 @@
 package mr
 
-import "log"
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
-
+import (
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+)
 
 type Coordinator struct {
-	// Your definitions here.
-
+	// 后续实现需要的字段（暂不实现）
 }
 
-// Your code here -- RPC handlers for the worker to call.
+// RPC处理器：处理Worker的任务请求
+func (c *Coordinator) GetTask(args *TaskRequest, reply *TaskReply) error {
+	// 后续实现任务分配逻辑
+	// 暂时返回等待任务
+	reply.TaskType = WaitTask
+	return nil
+}
 
-//
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
+// RPC处理器：处理Worker的任务汇报
+func (c *Coordinator) ReportTask(args *ReportRequest, reply *ReportReply) error {
+	// 后续实现任务状态更新逻辑
+	return nil
+}
+
+// 原有示例方法保持不变
 func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
 	return nil
 }
 
-
-//
-// start a thread that listens for RPCs from worker.go
-//
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
-	//l, e := net.Listen("tcp", ":1234")
 	sockname := coordinatorSock()
 	os.Remove(sockname)
 	l, e := net.Listen("unix", sockname)
@@ -41,30 +44,15 @@ func (c *Coordinator) server() {
 	go http.Serve(l, nil)
 }
 
-//
-// main/mrcoordinator.go calls Done() periodically to find out
-// if the entire job has finished.
-//
 func (c *Coordinator) Done() bool {
 	ret := false
-
-	// Your code here.
-
-
+	// 后续实现完成判断逻辑
 	return ret
 }
 
-//
-// create a Coordinator.
-// main/mrcoordinator.go calls this function.
-// nReduce is the number of reduce tasks to use.
-//
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
-
-	// Your code here.
-
-
+	// 后续实现初始化逻辑
 	c.server()
 	return &c
 }
